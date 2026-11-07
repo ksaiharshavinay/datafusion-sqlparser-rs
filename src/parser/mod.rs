@@ -230,6 +230,14 @@ impl From<bool> for MatchedTrailingBracket {
     }
 }
 
+/// The statement that owns a sequence option list.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SequenceOptionsContext {
+    CreateSequence,
+    IdentityColumn,
+    AlterSequence,
+}
+
 /// Options that control how the [`Parser`] parses SQL text
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParserOptions {
@@ -10549,7 +10557,8 @@ impl<'a> Parser<'a> {
         if self.parse_keywords(&[Keyword::ALWAYS, Keyword::AS, Keyword::IDENTITY]) {
             let mut sequence_options = vec![];
             if self.expect_token(&Token::LParen).is_ok() {
-                sequence_options = self.parse_sequence_options(false)?;
+                sequence_options =
+                    self.parse_sequence_options(SequenceOptionsContext::IdentityColumn)?;
                 self.expect_token(&Token::RParen)?;
             }
             Ok(Some(ColumnOption::Generated {
@@ -10567,7 +10576,8 @@ impl<'a> Parser<'a> {
         ]) {
             let mut sequence_options = vec![];
             if self.expect_token(&Token::LParen).is_ok() {
-                sequence_options = self.parse_sequence_options(false)?;
+                sequence_options =
+                    self.parse_sequence_options(SequenceOptionsContext::IdentityColumn)?;
                 self.expect_token(&Token::RParen)?;
             }
             Ok(Some(ColumnOption::Generated {
@@ -11762,7 +11772,8 @@ impl<'a> Parser<'a> {
 
                 if self.peek_token_ref().token == Token::LParen {
                     self.expect_token(&Token::LParen)?;
-                    sequence_options = Some(self.parse_sequence_options(false)?);
+                    sequence_options =
+                        Some(self.parse_sequence_options(SequenceOptionsContext::IdentityColumn)?);
                     self.expect_token(&Token::RParen)?;
                 }
 
@@ -12528,7 +12539,7 @@ impl<'a> Parser<'a> {
         } else {
             // PostgreSQL requires at least one option and never mixes options
             // with the other operations
-            let options = self.parse_sequence_options(true)?;
+            let options = self.parse_sequence_options(SequenceOptionsContext::AlterSequence)?;
             if options.is_empty() {
                 return self.expected_ref(
                     "a sequence option, OWNER TO, RENAME TO, SET LOGGED, SET UNLOGGED, or SET SCHEMA after the sequence name",
@@ -21702,7 +21713,8 @@ impl<'a> Parser<'a> {
         let if_not_exists = self.parse_keywords(&[Keyword::IF, Keyword::NOT, Keyword::EXISTS]);
         //name
         let name = self.parse_object_name(false)?;
-        let sequence_options = self.parse_sequence_options(true)?;
+        let sequence_options =
+            self.parse_sequence_options(SequenceOptionsContext::CreateSequence)?;
         Ok(Statement::CreateSequence {
             temporary,
             if_not_exists,
@@ -21711,15 +21723,20 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Parse the sequence options shared by `CREATE SEQUENCE` and identity
-    /// columns. The options form an unordered list, each allowed at most once.
+    /// Parse the sequence options shared by `CREATE SEQUENCE`, `ALTER SEQUENCE`
+    /// and identity columns. The options form an unordered list, each allowed
+    /// at most once.
     ///
-    /// `AS <data_type>` and `OWNED BY` are options of `CREATE SEQUENCE` only, so
-    /// `allow_type_and_owner` gates them off for an identity column.
+    /// `AS <data_type>` and `OWNED BY` are not options of an identity column, and
+    /// `RESTART` is an option of `ALTER SEQUENCE` only.
     fn parse_sequence_options(
         &mut self,
-        allow_type_and_owner: bool,
+        context: SequenceOptionsContext,
     ) -> Result<Vec<SequenceOptions>, ParserError> {
+        let allow_type_and_owner = matches!(
+            context,
+            SequenceOptionsContext::CreateSequence | SequenceOptionsContext::AlterSequence
+        );
         let mut sequence_options: Vec<SequenceOptions> = vec![];
         loop {
             let (option, name) = if self.parse_keyword(Keyword::INCREMENT) {
@@ -21752,6 +21769,23 @@ impl<'a> Parser<'a> {
                     SequenceOptions::StartWith(self.parse_number()?, with),
                     "START",
                 )
+            } else if context == SequenceOptionsContext::AlterSequence
+                && self.parse_keyword(Keyword::RESTART)
+            {
+                // [ RESTART [ [ WITH ] restart ] ]
+                // a following number is the restart value, a bare RESTART
+                // resets the sequence to its start value
+                let (restart, with) = if self.parse_keyword(Keyword::WITH) {
+                    (Some(self.parse_number()?), true)
+                } else if matches!(
+                    self.peek_token_ref().token,
+                    Token::Number(..) | Token::Plus | Token::Minus
+                ) {
+                    (Some(self.parse_number()?), false)
+                } else {
+                    (None, false)
+                };
+                (SequenceOptions::Restart(restart, with), "RESTART")
             } else if self.parse_keyword(Keyword::CACHE) {
                 //[ CACHE cache ]
                 (SequenceOptions::Cache(self.parse_number()?), "CACHE")
