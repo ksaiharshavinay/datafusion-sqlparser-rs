@@ -4907,6 +4907,64 @@ pub enum AlterExtensionOperation {
         /// Target schema name.
         schema_name: ObjectName,
     },
+    /// Add a member object to the extension.
+    ///
+    /// ```sql
+    /// ALTER EXTENSION name ADD member_object
+    /// ```
+    Add(AlterExtensionMember),
+    /// Remove a member object from the extension.
+    ///
+    /// ```sql
+    /// ALTER EXTENSION name DROP member_object
+    /// ```
+    Drop(AlterExtensionMember),
+}
+
+/// Member objects that can be added to or removed from an extension.
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
+pub enum AlterExtensionMember {
+    /// `ACCESS METHOD object_name`
+    AccessMethod(Ident),
+    /// `COLLATION object_name`
+    Collation(ObjectName),
+    /// `CONVERSION object_name`
+    Conversion(ObjectName),
+    /// `EVENT TRIGGER object_name`
+    EventTrigger(Ident),
+    /// `FOREIGN DATA WRAPPER object_name`
+    ForeignDataWrapper(Ident),
+    /// `FOREIGN TABLE object_name`
+    ForeignTable(ObjectName),
+    /// `[ PROCEDURAL ] LANGUAGE object_name`
+    Language {
+        /// Whether the `PROCEDURAL` keyword was present.
+        procedural: bool,
+        /// Language name.
+        name: Ident,
+    },
+    /// `MATERIALIZED VIEW object_name`
+    MaterializedView(ObjectName),
+    /// `SCHEMA object_name`
+    Schema(Ident),
+    /// `SEQUENCE object_name`
+    Sequence(ObjectName),
+    /// `SERVER object_name`
+    Server(Ident),
+    /// `TABLE object_name`
+    Table(ObjectName),
+    /// `TEXT SEARCH CONFIGURATION object_name`
+    TextSearchConfiguration(ObjectName),
+    /// `TEXT SEARCH DICTIONARY object_name`
+    TextSearchDictionary(ObjectName),
+    /// `TEXT SEARCH PARSER object_name`
+    TextSearchParser(ObjectName),
+    /// `TEXT SEARCH TEMPLATE object_name`
+    TextSearchTemplate(ObjectName),
+    /// `VIEW object_name`
+    View(ObjectName),
 }
 
 impl fmt::Display for AlterExtensionOperation {
@@ -4922,6 +4980,46 @@ impl fmt::Display for AlterExtensionOperation {
             AlterExtensionOperation::SetSchema { schema_name } => {
                 write!(f, "SET SCHEMA {schema_name}")
             }
+            AlterExtensionOperation::Add(member) => write!(f, "ADD {member}"),
+            AlterExtensionOperation::Drop(member) => write!(f, "DROP {member}"),
+        }
+    }
+}
+
+impl fmt::Display for AlterExtensionMember {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AlterExtensionMember::AccessMethod(name) => write!(f, "ACCESS METHOD {name}"),
+            AlterExtensionMember::Collation(name) => write!(f, "COLLATION {name}"),
+            AlterExtensionMember::Conversion(name) => write!(f, "CONVERSION {name}"),
+            AlterExtensionMember::EventTrigger(name) => write!(f, "EVENT TRIGGER {name}"),
+            AlterExtensionMember::ForeignDataWrapper(name) => {
+                write!(f, "FOREIGN DATA WRAPPER {name}")
+            }
+            AlterExtensionMember::ForeignTable(name) => write!(f, "FOREIGN TABLE {name}"),
+            AlterExtensionMember::Language { procedural, name } => {
+                if *procedural {
+                    write!(f, "PROCEDURAL LANGUAGE {name}")
+                } else {
+                    write!(f, "LANGUAGE {name}")
+                }
+            }
+            AlterExtensionMember::MaterializedView(name) => write!(f, "MATERIALIZED VIEW {name}"),
+            AlterExtensionMember::Schema(name) => write!(f, "SCHEMA {name}"),
+            AlterExtensionMember::Sequence(name) => write!(f, "SEQUENCE {name}"),
+            AlterExtensionMember::Server(name) => write!(f, "SERVER {name}"),
+            AlterExtensionMember::Table(name) => write!(f, "TABLE {name}"),
+            AlterExtensionMember::TextSearchConfiguration(name) => {
+                write!(f, "TEXT SEARCH CONFIGURATION {name}")
+            }
+            AlterExtensionMember::TextSearchDictionary(name) => {
+                write!(f, "TEXT SEARCH DICTIONARY {name}")
+            }
+            AlterExtensionMember::TextSearchParser(name) => write!(f, "TEXT SEARCH PARSER {name}"),
+            AlterExtensionMember::TextSearchTemplate(name) => {
+                write!(f, "TEXT SEARCH TEMPLATE {name}")
+            }
+            AlterExtensionMember::View(name) => write!(f, "VIEW {name}"),
         }
     }
 }

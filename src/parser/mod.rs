@@ -12521,13 +12521,92 @@ impl<'a> Parser<'a> {
                 schema_name: self.parse_object_name(false)?,
             }
         } else {
-            return self.expected_ref(
-                "UPDATE or SET SCHEMA after ALTER EXTENSION name",
-                self.peek_token_ref(),
-            );
+            let action = if self.parse_keyword(Keyword::ADD) {
+                AlterExtensionOperation::Add
+            } else if self.parse_keyword(Keyword::DROP) {
+                AlterExtensionOperation::Drop
+            } else {
+                return self.expected_ref(
+                    "UPDATE, SET SCHEMA, ADD, or DROP after ALTER EXTENSION name",
+                    self.peek_token_ref(),
+                );
+            };
+            action(self.parse_alter_extension_member()?)
         };
 
         Ok(AlterExtension { name, operation })
+    }
+
+    /// Parse a member object of `ALTER EXTENSION ADD` or `ALTER EXTENSION DROP`
+    fn parse_alter_extension_member(&mut self) -> Result<AlterExtensionMember, ParserError> {
+        if self.parse_keywords(&[Keyword::ACCESS, Keyword::METHOD]) {
+            Ok(AlterExtensionMember::AccessMethod(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::COLLATION) {
+            Ok(AlterExtensionMember::Collation(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keyword(Keyword::CONVERSION) {
+            Ok(AlterExtensionMember::Conversion(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keywords(&[Keyword::EVENT, Keyword::TRIGGER]) {
+            Ok(AlterExtensionMember::EventTrigger(self.parse_identifier()?))
+        } else if self.parse_keywords(&[Keyword::FOREIGN, Keyword::DATA, Keyword::WRAPPER]) {
+            Ok(AlterExtensionMember::ForeignDataWrapper(
+                self.parse_identifier()?,
+            ))
+        } else if self.parse_keywords(&[Keyword::FOREIGN, Keyword::TABLE]) {
+            Ok(AlterExtensionMember::ForeignTable(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keywords(&[Keyword::PROCEDURAL, Keyword::LANGUAGE]) {
+            Ok(AlterExtensionMember::Language {
+                procedural: true,
+                name: self.parse_identifier()?,
+            })
+        } else if self.parse_keyword(Keyword::LANGUAGE) {
+            Ok(AlterExtensionMember::Language {
+                procedural: false,
+                name: self.parse_identifier()?,
+            })
+        } else if self.parse_keywords(&[Keyword::MATERIALIZED, Keyword::VIEW]) {
+            Ok(AlterExtensionMember::MaterializedView(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keyword(Keyword::SCHEMA) {
+            Ok(AlterExtensionMember::Schema(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::SEQUENCE) {
+            Ok(AlterExtensionMember::Sequence(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keyword(Keyword::SERVER) {
+            Ok(AlterExtensionMember::Server(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::TABLE) {
+            Ok(AlterExtensionMember::Table(self.parse_object_name(false)?))
+        } else if self.parse_keywords(&[Keyword::TEXT, Keyword::SEARCH, Keyword::CONFIGURATION]) {
+            Ok(AlterExtensionMember::TextSearchConfiguration(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keywords(&[Keyword::TEXT, Keyword::SEARCH, Keyword::DICTIONARY]) {
+            Ok(AlterExtensionMember::TextSearchDictionary(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keywords(&[Keyword::TEXT, Keyword::SEARCH, Keyword::PARSER]) {
+            Ok(AlterExtensionMember::TextSearchParser(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keywords(&[Keyword::TEXT, Keyword::SEARCH, Keyword::TEMPLATE]) {
+            Ok(AlterExtensionMember::TextSearchTemplate(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keyword(Keyword::VIEW) {
+            Ok(AlterExtensionMember::View(self.parse_object_name(false)?))
+        } else {
+            self.expected_ref(
+                "member object type after ADD or DROP",
+                self.peek_token_ref(),
+            )
+        }
     }
 
     /// Parse a [Statement::AlterOperator]

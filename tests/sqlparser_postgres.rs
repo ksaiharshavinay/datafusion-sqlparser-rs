@@ -13526,6 +13526,35 @@ fn parse_case_ending_in_end_keyword_is_not_silently_dropped() {
     );
 }
 
+fn alter_extension_member_round_trip_forms(action: &str) {
+    let sqls = [
+        format!("ALTER EXTENSION ext_name {action} ACCESS METHOD btree"),
+        format!("ALTER EXTENSION ext_name {action} COLLATION en_US"),
+        format!("ALTER EXTENSION ext_name {action} COLLATION schema.en_US"),
+        format!("ALTER EXTENSION ext_name {action} CONVERSION conv"),
+        format!("ALTER EXTENSION ext_name {action} EVENT TRIGGER trg"),
+        format!("ALTER EXTENSION ext_name {action} FOREIGN DATA WRAPPER fdw"),
+        format!("ALTER EXTENSION ext_name {action} FOREIGN TABLE ft"),
+        format!("ALTER EXTENSION ext_name {action} FOREIGN TABLE schema.ft"),
+        format!("ALTER EXTENSION ext_name {action} LANGUAGE plpgsql"),
+        format!("ALTER EXTENSION ext_name {action} PROCEDURAL LANGUAGE plpgsql"),
+        format!("ALTER EXTENSION ext_name {action} MATERIALIZED VIEW mv"),
+        format!("ALTER EXTENSION ext_name {action} SCHEMA schema_name"),
+        format!("ALTER EXTENSION ext_name {action} SEQUENCE seq"),
+        format!("ALTER EXTENSION ext_name {action} SERVER srv"),
+        format!("ALTER EXTENSION ext_name {action} TABLE t"),
+        format!("ALTER EXTENSION ext_name {action} TABLE schema.t"),
+        format!("ALTER EXTENSION ext_name {action} TEXT SEARCH CONFIGURATION cfg"),
+        format!("ALTER EXTENSION ext_name {action} TEXT SEARCH DICTIONARY dict"),
+        format!("ALTER EXTENSION ext_name {action} TEXT SEARCH PARSER pgrm"),
+        format!("ALTER EXTENSION ext_name {action} TEXT SEARCH TEMPLATE tpl"),
+        format!("ALTER EXTENSION ext_name {action} VIEW v"),
+    ];
+    for sql in sqls {
+        pg_and_generic().verified_stmt(&sql);
+    }
+}
+
 #[test]
 fn parse_alter_extension_update() {
     pg_and_generic().verified_stmt("ALTER EXTENSION ext_name UPDATE");
@@ -13559,7 +13588,7 @@ fn parse_alter_extension_update() {
     for (sql, error) in [
         (
             "ALTER EXTENSION ext_name",
-            "Expected: UPDATE or SET SCHEMA after ALTER EXTENSION name, found: EOF",
+            "Expected: UPDATE, SET SCHEMA, ADD, or DROP after ALTER EXTENSION name, found: EOF",
         ),
         (
             "ALTER EXTENSION ext_name UPDATE TO",
@@ -13634,6 +13663,122 @@ fn parse_alter_extension_set_schema() {
             "Expected: identifier, found: EOF",
         ),
         ("ALTER EXTENSION 1", "Expected: identifier, found: 1"),
+    ] {
+        assert_eq!(
+            pg_and_generic().parse_sql_statements(sql).unwrap_err(),
+            ParserError::ParserError(error.to_string()),
+            "{sql}"
+        );
+    }
+}
+
+#[test]
+fn parse_alter_extension_add_member() {
+    alter_extension_member_round_trip_forms("ADD");
+
+    match pg_and_generic().verified_stmt("ALTER EXTENSION ext_name ADD ACCESS METHOD btree") {
+        Statement::AlterExtension(AlterExtension { name, operation }) => {
+            assert_eq!(name, Ident::new("ext_name"));
+            assert_eq!(
+                operation,
+                AlterExtensionOperation::Add(AlterExtensionMember::AccessMethod(Ident::new(
+                    "btree"
+                )))
+            );
+        }
+        other => panic!("unexpected statement: {other:?}"),
+    }
+
+    match pg_and_generic().verified_stmt("ALTER EXTENSION ext_name ADD PROCEDURAL LANGUAGE plpgsql")
+    {
+        Statement::AlterExtension(AlterExtension {
+            operation:
+                AlterExtensionOperation::Add(AlterExtensionMember::Language { procedural, name }),
+            ..
+        }) => {
+            assert!(procedural);
+            assert_eq!(name, Ident::new("plpgsql"));
+        }
+        other => panic!("unexpected statement: {other:?}"),
+    }
+
+    for (sql, error) in [
+        (
+            "ALTER EXTENSION ext_name ADD",
+            "Expected: member object type after ADD or DROP, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD FOO bar",
+            "Expected: member object type after ADD or DROP, found: FOO",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD SCHEMA a.b",
+            "Expected: end of statement, found: .",
+        ),
+    ] {
+        assert_eq!(
+            pg_and_generic().parse_sql_statements(sql).unwrap_err(),
+            ParserError::ParserError(error.to_string()),
+            "{sql}"
+        );
+    }
+
+    for member in [
+        "ACCESS METHOD",
+        "COLLATION",
+        "CONVERSION",
+        "EVENT TRIGGER",
+        "FOREIGN DATA WRAPPER",
+        "FOREIGN TABLE",
+        "LANGUAGE",
+        "MATERIALIZED VIEW",
+        "PROCEDURAL LANGUAGE",
+        "SCHEMA",
+        "SEQUENCE",
+        "SERVER",
+        "TABLE",
+        "TEXT SEARCH CONFIGURATION",
+        "TEXT SEARCH DICTIONARY",
+        "TEXT SEARCH PARSER",
+        "TEXT SEARCH TEMPLATE",
+        "VIEW",
+    ] {
+        let sql = format!("ALTER EXTENSION ext_name ADD {member}");
+        assert_eq!(
+            pg_and_generic().parse_sql_statements(&sql).unwrap_err(),
+            ParserError::ParserError("Expected: identifier, found: EOF".to_string()),
+            "{sql}"
+        );
+    }
+}
+
+#[test]
+fn parse_alter_extension_drop_member() {
+    alter_extension_member_round_trip_forms("DROP");
+
+    match pg_and_generic().verified_stmt("ALTER EXTENSION ext_name DROP TABLE schema.t") {
+        Statement::AlterExtension(AlterExtension { name, operation }) => {
+            assert_eq!(name, Ident::new("ext_name"));
+            assert_eq!(
+                operation,
+                AlterExtensionOperation::Drop(AlterExtensionMember::Table(ObjectName::from(vec![
+                    Ident::new("schema"),
+                    Ident::new("t")
+                ])))
+            );
+        }
+        other => panic!("unexpected statement: {other:?}"),
+    }
+
+    for (sql, error) in [
+        (
+            "ALTER EXTENSION ext_name DROP",
+            "Expected: member object type after ADD or DROP, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name DROP FOO bar",
+            "Expected: member object type after ADD or DROP, found: FOO",
+        ),
     ] {
         assert_eq!(
             pg_and_generic().parse_sql_statements(sql).unwrap_err(),
