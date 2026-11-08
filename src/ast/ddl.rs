@@ -4922,6 +4922,10 @@ pub enum AlterExtensionOperation {
 }
 
 /// Member objects that can be added to or removed from an extension.
+///
+/// `ADD` and `DROP` also accept `DATABASE`, `ROLE`, `SUBSCRIPTION`, `TABLESPACE`,
+/// `PUBLICATION`, `EXTENSION`, `INDEX`, and `STATISTICS` member objects, which
+/// PostgreSQL rejects with a semantic error.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
@@ -4932,12 +4936,18 @@ pub enum AlterExtensionMember {
     Collation(ObjectName),
     /// `CONVERSION object_name`
     Conversion(ObjectName),
+    /// `DATABASE object_name`
+    Database(Ident),
     /// `EVENT TRIGGER object_name`
     EventTrigger(Ident),
+    /// `EXTENSION object_name`
+    Extension(Ident),
     /// `FOREIGN DATA WRAPPER object_name`
     ForeignDataWrapper(Ident),
     /// `FOREIGN TABLE object_name`
     ForeignTable(ObjectName),
+    /// `INDEX object_name`
+    Index(ObjectName),
     /// `[ PROCEDURAL ] LANGUAGE object_name`
     Language {
         /// Whether the `PROCEDURAL` keyword was present.
@@ -4947,14 +4957,24 @@ pub enum AlterExtensionMember {
     },
     /// `MATERIALIZED VIEW object_name`
     MaterializedView(ObjectName),
+    /// `PUBLICATION object_name`
+    Publication(Ident),
+    /// `ROLE object_name`
+    Role(Ident),
     /// `SCHEMA object_name`
     Schema(Ident),
     /// `SEQUENCE object_name`
     Sequence(ObjectName),
     /// `SERVER object_name`
     Server(Ident),
+    /// `STATISTICS object_name`
+    Statistics(ObjectName),
+    /// `SUBSCRIPTION object_name`
+    Subscription(Ident),
     /// `TABLE object_name`
     Table(ObjectName),
+    /// `TABLESPACE object_name`
+    TableSpace(Ident),
     /// `TEXT SEARCH CONFIGURATION object_name`
     TextSearchConfiguration(ObjectName),
     /// `TEXT SEARCH DICTIONARY object_name`
@@ -4992,11 +5012,14 @@ impl fmt::Display for AlterExtensionMember {
             AlterExtensionMember::AccessMethod(name) => write!(f, "ACCESS METHOD {name}"),
             AlterExtensionMember::Collation(name) => write!(f, "COLLATION {name}"),
             AlterExtensionMember::Conversion(name) => write!(f, "CONVERSION {name}"),
+            AlterExtensionMember::Database(name) => write!(f, "DATABASE {name}"),
             AlterExtensionMember::EventTrigger(name) => write!(f, "EVENT TRIGGER {name}"),
+            AlterExtensionMember::Extension(name) => write!(f, "EXTENSION {name}"),
             AlterExtensionMember::ForeignDataWrapper(name) => {
                 write!(f, "FOREIGN DATA WRAPPER {name}")
             }
             AlterExtensionMember::ForeignTable(name) => write!(f, "FOREIGN TABLE {name}"),
+            AlterExtensionMember::Index(name) => write!(f, "INDEX {name}"),
             AlterExtensionMember::Language { procedural, name } => {
                 if *procedural {
                     write!(f, "PROCEDURAL LANGUAGE {name}")
@@ -5005,10 +5028,15 @@ impl fmt::Display for AlterExtensionMember {
                 }
             }
             AlterExtensionMember::MaterializedView(name) => write!(f, "MATERIALIZED VIEW {name}"),
+            AlterExtensionMember::Publication(name) => write!(f, "PUBLICATION {name}"),
+            AlterExtensionMember::Role(name) => write!(f, "ROLE {name}"),
             AlterExtensionMember::Schema(name) => write!(f, "SCHEMA {name}"),
             AlterExtensionMember::Sequence(name) => write!(f, "SEQUENCE {name}"),
             AlterExtensionMember::Server(name) => write!(f, "SERVER {name}"),
+            AlterExtensionMember::Statistics(name) => write!(f, "STATISTICS {name}"),
+            AlterExtensionMember::Subscription(name) => write!(f, "SUBSCRIPTION {name}"),
             AlterExtensionMember::Table(name) => write!(f, "TABLE {name}"),
+            AlterExtensionMember::TableSpace(name) => write!(f, "TABLESPACE {name}"),
             AlterExtensionMember::TextSearchConfiguration(name) => {
                 write!(f, "TEXT SEARCH CONFIGURATION {name}")
             }

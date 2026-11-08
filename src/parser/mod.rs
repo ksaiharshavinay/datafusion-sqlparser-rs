@@ -12549,8 +12549,12 @@ impl<'a> Parser<'a> {
             Ok(AlterExtensionMember::Conversion(
                 self.parse_object_name(false)?,
             ))
+        } else if self.parse_keyword(Keyword::DATABASE) {
+            Ok(AlterExtensionMember::Database(self.parse_identifier()?))
         } else if self.parse_keywords(&[Keyword::EVENT, Keyword::TRIGGER]) {
             Ok(AlterExtensionMember::EventTrigger(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::EXTENSION) {
+            Ok(AlterExtensionMember::Extension(self.parse_identifier()?))
         } else if self.parse_keywords(&[Keyword::FOREIGN, Keyword::DATA, Keyword::WRAPPER]) {
             Ok(AlterExtensionMember::ForeignDataWrapper(
                 self.parse_identifier()?,
@@ -12559,6 +12563,8 @@ impl<'a> Parser<'a> {
             Ok(AlterExtensionMember::ForeignTable(
                 self.parse_object_name(false)?,
             ))
+        } else if self.parse_keyword(Keyword::INDEX) {
+            Ok(AlterExtensionMember::Index(self.parse_object_name(false)?))
         } else if self.parse_keywords(&[Keyword::PROCEDURAL, Keyword::LANGUAGE]) {
             Ok(AlterExtensionMember::Language {
                 procedural: true,
@@ -12573,6 +12579,10 @@ impl<'a> Parser<'a> {
             Ok(AlterExtensionMember::MaterializedView(
                 self.parse_object_name(false)?,
             ))
+        } else if self.parse_keyword(Keyword::PUBLICATION) {
+            Ok(AlterExtensionMember::Publication(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::ROLE) {
+            Ok(AlterExtensionMember::Role(self.parse_identifier()?))
         } else if self.parse_keyword(Keyword::SCHEMA) {
             Ok(AlterExtensionMember::Schema(self.parse_identifier()?))
         } else if self.parse_keyword(Keyword::SEQUENCE) {
@@ -12581,8 +12591,16 @@ impl<'a> Parser<'a> {
             ))
         } else if self.parse_keyword(Keyword::SERVER) {
             Ok(AlterExtensionMember::Server(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::STATISTICS) {
+            Ok(AlterExtensionMember::Statistics(
+                self.parse_object_name(false)?,
+            ))
+        } else if self.parse_keyword(Keyword::SUBSCRIPTION) {
+            Ok(AlterExtensionMember::Subscription(self.parse_identifier()?))
         } else if self.parse_keyword(Keyword::TABLE) {
             Ok(AlterExtensionMember::Table(self.parse_object_name(false)?))
+        } else if self.parse_keyword(Keyword::TABLESPACE) {
+            Ok(AlterExtensionMember::TableSpace(self.parse_identifier()?))
         } else if self.parse_keywords(&[Keyword::TEXT, Keyword::SEARCH, Keyword::CONFIGURATION]) {
             Ok(AlterExtensionMember::TextSearchConfiguration(
                 self.parse_object_name(false)?,
