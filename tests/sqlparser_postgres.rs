@@ -13541,6 +13541,7 @@ fn alter_extension_member_round_trip_forms(action: &str) {
         format!("ALTER EXTENSION ext_name {action} COLLATION schema.en_US"),
         format!("ALTER EXTENSION ext_name {action} CONVERSION conv"),
         format!("ALTER EXTENSION ext_name {action} DATABASE db_name"),
+        format!("ALTER EXTENSION ext_name {action} DOMAIN my_domain"),
         format!("ALTER EXTENSION ext_name {action} EVENT TRIGGER trg"),
         format!("ALTER EXTENSION ext_name {action} EXTENSION other_ext"),
         format!("ALTER EXTENSION ext_name {action} FOREIGN DATA WRAPPER fdw"),
@@ -13578,6 +13579,7 @@ fn alter_extension_member_round_trip_forms(action: &str) {
         format!("ALTER EXTENSION ext_name {action} TEXT SEARCH PARSER pgrm"),
         format!("ALTER EXTENSION ext_name {action} TEXT SEARCH TEMPLATE tpl"),
         format!("ALTER EXTENSION ext_name {action} TRANSFORM FOR my_type LANGUAGE plpgsql"),
+        format!("ALTER EXTENSION ext_name {action} TYPE my_type"),
         format!("ALTER EXTENSION ext_name {action} VIEW v"),
     ];
     for sql in sqls {
@@ -13920,6 +13922,10 @@ fn parse_alter_extension_add_member() {
             "Expected: ), found: EOF",
         ),
         (
+            "ALTER EXTENSION ext_name ADD DOMAIN",
+            "Expected: a data type name, found: EOF",
+        ),
+        (
             "ALTER EXTENSION ext_name ADD OPERATOR CLASS",
             "Expected: identifier, found: EOF",
         ),
@@ -13942,6 +13948,10 @@ fn parse_alter_extension_add_member() {
         (
             "ALTER EXTENSION ext_name ADD TRANSFORM FOR my_type LANGUAGE",
             "Expected: identifier, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD TYPE",
+            "Expected: a data type name, found: EOF",
         ),
     ] {
         assert_eq!(

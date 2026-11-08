@@ -12568,6 +12568,8 @@ impl<'a> Parser<'a> {
             ))
         } else if self.parse_keyword(Keyword::DATABASE) {
             Ok(AlterExtensionMember::Database(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::DOMAIN) {
+            Ok(AlterExtensionMember::Domain(self.parse_data_type()?))
         } else if self.parse_keywords(&[Keyword::EVENT, Keyword::TRIGGER]) {
             Ok(AlterExtensionMember::EventTrigger(self.parse_identifier()?))
         } else if self.parse_keyword(Keyword::EXTENSION) {
@@ -12664,6 +12666,8 @@ impl<'a> Parser<'a> {
                 type_name,
                 language,
             })
+        } else if self.parse_keyword(Keyword::TYPE) {
+            Ok(AlterExtensionMember::Type(self.parse_data_type()?))
         } else if self.parse_keyword(Keyword::VIEW) {
             Ok(AlterExtensionMember::View(self.parse_object_name(false)?))
         } else {

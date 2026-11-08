@@ -4954,6 +4954,8 @@ pub enum AlterExtensionMember {
     Conversion(ObjectName),
     /// `DATABASE object_name`
     Database(Ident),
+    /// `DOMAIN object_name`
+    Domain(DataType),
     /// `EVENT TRIGGER object_name`
     EventTrigger(Ident),
     /// `EXTENSION object_name`
@@ -5028,6 +5030,8 @@ pub enum AlterExtensionMember {
         /// Language name.
         language: Ident,
     },
+    /// `TYPE object_name`
+    Type(DataType),
     /// `VIEW object_name`
     View(ObjectName),
 }
@@ -5083,6 +5087,7 @@ impl fmt::Display for AlterExtensionMember {
             AlterExtensionMember::Collation(name) => write!(f, "COLLATION {name}"),
             AlterExtensionMember::Conversion(name) => write!(f, "CONVERSION {name}"),
             AlterExtensionMember::Database(name) => write!(f, "DATABASE {name}"),
+            AlterExtensionMember::Domain(data_type) => write!(f, "DOMAIN {data_type}"),
             AlterExtensionMember::EventTrigger(name) => write!(f, "EVENT TRIGGER {name}"),
             AlterExtensionMember::Extension(name) => write!(f, "EXTENSION {name}"),
             AlterExtensionMember::ForeignDataWrapper(name) => {
@@ -5131,6 +5136,7 @@ impl fmt::Display for AlterExtensionMember {
                 type_name,
                 language,
             } => write!(f, "TRANSFORM FOR {type_name} LANGUAGE {language}"),
+            AlterExtensionMember::Type(data_type) => write!(f, "TYPE {data_type}"),
             AlterExtensionMember::View(name) => write!(f, "VIEW {name}"),
         }
     }
