@@ -4932,6 +4932,15 @@ pub enum AlterExtensionOperation {
 pub enum AlterExtensionMember {
     /// `ACCESS METHOD object_name`
     AccessMethod(Ident),
+    /// `AGGREGATE aggregate_name ( aggregate_signature )`
+    Aggregate {
+        /// Aggregate name and argument list. `args` is `Some(vec![])` for `*`.
+        function: FunctionDesc,
+        /// Whether the signature is `*`.
+        star: bool,
+        /// Arguments after `ORDER BY`, if any.
+        order_by: Option<Vec<OperateFunctionArg>>,
+    },
     /// `COLLATION object_name`
     Collation(ObjectName),
     /// `CONVERSION object_name`
@@ -5016,6 +5025,27 @@ impl fmt::Display for AlterExtensionMember {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AlterExtensionMember::AccessMethod(name) => write!(f, "ACCESS METHOD {name}"),
+            AlterExtensionMember::Aggregate {
+                function,
+                star,
+                order_by,
+            } => {
+                write!(f, "AGGREGATE {}(", function.name)?;
+                if *star {
+                    write!(f, "*")?;
+                } else {
+                    if let Some(args) = &function.args {
+                        write!(f, "{}", display_comma_separated(args))?;
+                    }
+                    if let Some(order_by) = order_by {
+                        if function.args.as_ref().is_some_and(|args| !args.is_empty()) {
+                            write!(f, " ")?;
+                        }
+                        write!(f, "ORDER BY {}", display_comma_separated(order_by))?;
+                    }
+                }
+                write!(f, ")")
+            }
             AlterExtensionMember::Collation(name) => write!(f, "COLLATION {name}"),
             AlterExtensionMember::Conversion(name) => write!(f, "CONVERSION {name}"),
             AlterExtensionMember::Database(name) => write!(f, "DATABASE {name}"),

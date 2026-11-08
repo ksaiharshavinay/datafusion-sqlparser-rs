@@ -13529,6 +13529,12 @@ fn parse_case_ending_in_end_keyword_is_not_silently_dropped() {
 fn alter_extension_member_round_trip_forms(action: &str) {
     let sqls = [
         format!("ALTER EXTENSION ext_name {action} ACCESS METHOD btree"),
+        format!("ALTER EXTENSION ext_name {action} AGGREGATE agg(*)"),
+        format!("ALTER EXTENSION ext_name {action} AGGREGATE agg(INT)"),
+        format!("ALTER EXTENSION ext_name {action} AGGREGATE agg(INT, TEXT)"),
+        format!("ALTER EXTENSION ext_name {action} AGGREGATE agg(IN INT)"),
+        format!("ALTER EXTENSION ext_name {action} AGGREGATE agg(ORDER BY TEXT)"),
+        format!("ALTER EXTENSION ext_name {action} AGGREGATE agg(INT ORDER BY TEXT)"),
         format!("ALTER EXTENSION ext_name {action} COLLATION en_US"),
         format!("ALTER EXTENSION ext_name {action} COLLATION schema.en_US"),
         format!("ALTER EXTENSION ext_name {action} CONVERSION conv"),
@@ -13706,6 +13712,61 @@ fn parse_alter_extension_add_member() {
         other => panic!("unexpected statement: {other:?}"),
     }
 
+    match pg_and_generic().verified_stmt("ALTER EXTENSION ext_name ADD AGGREGATE agg(*)") {
+        Statement::AlterExtension(AlterExtension {
+            operation:
+                AlterExtensionOperation::Add(AlterExtensionMember::Aggregate {
+                    function,
+                    star,
+                    order_by,
+                }),
+            ..
+        }) => {
+            assert_eq!(function.name, ObjectName::from(Ident::new("agg")));
+            assert_eq!(function.args, Some(Vec::new()));
+            assert!(star);
+            assert_eq!(order_by, None);
+        }
+        other => panic!("unexpected statement: {other:?}"),
+    }
+
+    match pg_and_generic()
+        .verified_stmt("ALTER EXTENSION ext_name ADD AGGREGATE agg(INT ORDER BY TEXT)")
+    {
+        Statement::AlterExtension(AlterExtension {
+            operation:
+                AlterExtensionOperation::Add(AlterExtensionMember::Aggregate {
+                    function,
+                    star,
+                    order_by,
+                }),
+            ..
+        }) => {
+            assert_eq!(function.name, ObjectName::from(Ident::new("agg")));
+            assert_eq!(
+                function.args,
+                Some(vec![OperateFunctionArg::unnamed(DataType::Int(None))])
+            );
+            assert!(!star);
+            assert_eq!(
+                order_by,
+                Some(vec![OperateFunctionArg::unnamed(DataType::Text)])
+            );
+        }
+        other => panic!("unexpected statement: {other:?}"),
+    }
+
+    // The aggregate parser always sets `args` to `Some`. Display the `None` case.
+    let no_args = AlterExtensionMember::Aggregate {
+        function: FunctionDesc {
+            name: ObjectName::from(Ident::new("agg")),
+            args: None,
+        },
+        star: false,
+        order_by: None,
+    };
+    assert_eq!(no_args.to_string(), "AGGREGATE agg()");
+
     match pg_and_generic().verified_stmt("ALTER EXTENSION ext_name ADD FUNCTION f(INT)") {
         Statement::AlterExtension(AlterExtension {
             operation: AlterExtensionOperation::Add(AlterExtensionMember::Function(function)),
@@ -13745,6 +13806,10 @@ fn parse_alter_extension_add_member() {
         (
             "ALTER EXTENSION ext_name ADD SCHEMA a.b",
             "Expected: end of statement, found: .",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD AGGREGATE agg",
+            "Expected: (, found: EOF",
         ),
         (
             "ALTER EXTENSION ext_name ADD FUNCTION 1",
@@ -13801,6 +13866,60 @@ fn parse_alter_extension_add_member() {
             "{sql}"
         );
     }
+}
+
+#[test]
+fn display_alter_extension_aggregate_propagates_write_errors() {
+    use core::fmt::{self, Write};
+
+    struct RejectingWriter(&'static str);
+
+    impl Write for RejectingWriter {
+        fn write_str(&mut self, value: &str) -> fmt::Result {
+            if value.contains(self.0) {
+                Err(fmt::Error)
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    // The outer `ALTER EXTENSION {name} {operation}` writes a single space before the
+    // member, so the space separating the argument list from `ORDER BY` is the second
+    // space written; reject it by position.
+    struct SecondSpaceRejectingWriter {
+        spaces: usize,
+    }
+
+    impl Write for SecondSpaceRejectingWriter {
+        fn write_str(&mut self, value: &str) -> fmt::Result {
+            if value == " " {
+                self.spaces += 1;
+                if self.spaces >= 2 {
+                    return Err(fmt::Error);
+                }
+            }
+            Ok(())
+        }
+    }
+
+    let star = pg().verified_stmt("ALTER EXTENSION ext_name ADD AGGREGATE agg(*)");
+    let with_order_by =
+        pg().verified_stmt("ALTER EXTENSION ext_name ADD AGGREGATE agg(INT ORDER BY TEXT)");
+
+    for (stmt, rejected) in [
+        (&star, "AGGREGATE "),
+        (&star, "*"),
+        (&with_order_by, "AGGREGATE "),
+        (&with_order_by, "INT"),
+        (&with_order_by, "ORDER BY "),
+    ] {
+        let mut writer = RejectingWriter(rejected);
+        assert_eq!(write!(writer, "{stmt}"), Err(fmt::Error), "{rejected}");
+    }
+
+    let mut writer = SecondSpaceRejectingWriter { spaces: 0 };
+    assert_eq!(write!(writer, "{with_order_by}"), Err(fmt::Error));
 }
 
 #[test]
