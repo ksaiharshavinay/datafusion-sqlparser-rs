@@ -13554,6 +13554,8 @@ fn alter_extension_member_round_trip_forms(action: &str) {
         format!("ALTER EXTENSION ext_name {action} MATERIALIZED VIEW mv"),
         format!("ALTER EXTENSION ext_name {action} OPERATOR + (INT, TEXT)"),
         format!("ALTER EXTENSION ext_name {action} OPERATOR - (NONE, INT)"),
+        format!("ALTER EXTENSION ext_name {action} OPERATOR CLASS oc USING btree"),
+        format!("ALTER EXTENSION ext_name {action} OPERATOR FAMILY of USING btree"),
         format!("ALTER EXTENSION ext_name {action} PROCEDURE p"),
         format!("ALTER EXTENSION ext_name {action} PROCEDURE p()"),
         format!("ALTER EXTENSION ext_name {action} PROCEDURE p(INT)"),
@@ -13840,6 +13842,30 @@ fn parse_alter_extension_add_member() {
         (
             "ALTER EXTENSION ext_name ADD OPERATOR +",
             "Expected: (, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD OPERATOR CLASS oc",
+            "Expected: USING, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD OPERATOR CLASS oc USING",
+            "Expected: identifier, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD OPERATOR CLASS",
+            "Expected: identifier, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD OPERATOR FAMILY",
+            "Expected: identifier, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD OPERATOR FAMILY of",
+            "Expected: USING, found: EOF",
+        ),
+        (
+            "ALTER EXTENSION ext_name ADD OPERATOR FAMILY of USING",
+            "Expected: identifier, found: EOF",
         ),
     ] {
         assert_eq!(

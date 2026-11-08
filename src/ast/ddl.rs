@@ -4970,6 +4970,20 @@ pub enum AlterExtensionMember {
     MaterializedView(ObjectName),
     /// `OPERATOR operator_name (left_type, right_type)`
     Operator(DropOperatorSignature),
+    /// `OPERATOR CLASS object_name USING index_method`
+    OperatorClass {
+        /// Operator class name.
+        name: ObjectName,
+        /// Index method.
+        using: Ident,
+    },
+    /// `OPERATOR FAMILY object_name USING index_method`
+    OperatorFamily {
+        /// Operator family name.
+        name: ObjectName,
+        /// Index method.
+        using: Ident,
+    },
     /// `PROCEDURE procedure_name [ ( [ [ argmode ] [ argname ] argtype [, ...] ] ) ]`
     Procedure(FunctionDesc),
     /// `PUBLICATION object_name`
@@ -5068,6 +5082,12 @@ impl fmt::Display for AlterExtensionMember {
             }
             AlterExtensionMember::MaterializedView(name) => write!(f, "MATERIALIZED VIEW {name}"),
             AlterExtensionMember::Operator(signature) => write!(f, "OPERATOR {signature}"),
+            AlterExtensionMember::OperatorClass { name, using } => {
+                write!(f, "OPERATOR CLASS {name} USING {using}")
+            }
+            AlterExtensionMember::OperatorFamily { name, using } => {
+                write!(f, "OPERATOR FAMILY {name} USING {using}")
+            }
             AlterExtensionMember::Procedure(function) => write!(f, "PROCEDURE {function}"),
             AlterExtensionMember::Publication(name) => write!(f, "PUBLICATION {name}"),
             AlterExtensionMember::Routine(function) => write!(f, "ROUTINE {function}"),
