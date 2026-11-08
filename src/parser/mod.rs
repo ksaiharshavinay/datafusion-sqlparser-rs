@@ -12563,6 +12563,8 @@ impl<'a> Parser<'a> {
             Ok(AlterExtensionMember::ForeignTable(
                 self.parse_object_name(false)?,
             ))
+        } else if self.parse_keyword(Keyword::FUNCTION) {
+            Ok(AlterExtensionMember::Function(self.parse_function_desc()?))
         } else if self.parse_keyword(Keyword::INDEX) {
             Ok(AlterExtensionMember::Index(self.parse_object_name(false)?))
         } else if self.parse_keywords(&[Keyword::PROCEDURAL, Keyword::LANGUAGE]) {
@@ -12579,8 +12581,12 @@ impl<'a> Parser<'a> {
             Ok(AlterExtensionMember::MaterializedView(
                 self.parse_object_name(false)?,
             ))
+        } else if self.parse_keyword(Keyword::PROCEDURE) {
+            Ok(AlterExtensionMember::Procedure(self.parse_function_desc()?))
         } else if self.parse_keyword(Keyword::PUBLICATION) {
             Ok(AlterExtensionMember::Publication(self.parse_identifier()?))
+        } else if self.parse_keyword(Keyword::ROUTINE) {
+            Ok(AlterExtensionMember::Routine(self.parse_function_desc()?))
         } else if self.parse_keyword(Keyword::ROLE) {
             Ok(AlterExtensionMember::Role(self.parse_identifier()?))
         } else if self.parse_keyword(Keyword::SCHEMA) {
